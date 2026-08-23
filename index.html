@@ -674,12 +674,22 @@ overallRiskRating: exactly one of: Low | Medium | High | Critical`;
   const userMsg=`CLIENT: ${meta.client}\nENGAGEMENT: ${meta.engagement||'Internal Audit'}\nAUDIT PERIOD: ${meta.period||'Not specified'}\nPREPARED BY: ${meta.auditor||'Not specified'}\nREVIEWED BY: ${meta.reviewer||'Not specified'}\nPROCESS: ${meta.process||'Not specified'}\nMETHODOLOGY: ${document.getElementById('methodology').value.trim()||'IIA Standards'}\n\nPRIOR-YEAR OBSERVATIONS:\n${document.getElementById('prior-year').value.trim()||'None.'}\n\nEVIDENCE PROVIDED:\n${document.getElementById('evidence-text').value.trim()||'None.'}\n\nFILES UPLOADED:\n${fileContents.length?fileContents.join('\n\n---\n\n'):'None.'}\n\nADDITIONAL FILES DESCRIBED:\n${document.getElementById('files-desc').value.trim()||'None.'}\n\nSAMPLE SELECTED:\n${document.getElementById('sample-text').value.trim()||'Not drawn — recommend appropriate size per IIA guidelines.'}\n\nSAMPLING METHODOLOGY: ${document.getElementById('sampling').value.trim()||'Not specified.'}\n\nCONTROLS TO TEST (${sel.length}):\n${sel.map(c=>`\n=== ${c.id} ===\nBusiness Unit: ${c.bu||'N/A'}\nDepartment: ${c.dept||'N/A'}\nProcess: ${c.process||'N/A'}\nSub-process: ${c.subprocess||'N/A'}\nRisk Category: ${c.riskcat||'N/A'}\nRisk Name: ${c.riskname||'N/A'}\nRisk Description: ${c.riskdesc||'N/A'}\nControl Description: ${c.controldesc||'N/A'}\nTesting Steps (RCM): ${c.testingsteps||'N/A'}\nFrequency: ${c.freq||'N/A'}\nRisk Owner: ${c.owner||'N/A'}`).join('\n')}`;
 
   try{
-    const response=await fetch('/api/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:16000,system:systemPrompt,messages:[{role:'user',content:userMsg}]})});
+    // Process one control at a time to avoid token limits
+    const allResults = [];
+    for(let i=0; i<sel.length; i++){
+      const ctrl = sel[i];
+      document.querySelector('.lsteps').innerHTML = `<div class="lstep active"><span class="dot"></span>Testing control ${i+1} of ${sel.length}: ${ctrl.id}...</div>`;
+      const singleMsg = userMsg.replace(/CONTROLS TO TEST \(\d+\):[\s\S]*$/, `CONTROLS TO TEST (1):\n\n=== ${ctrl.id} ===\nBusiness Unit: ${ctrl.bu||'N/A'}\nDepartment: ${ctrl.dept||'N/A'}\nProcess: ${ctrl.process||'N/A'}\nSub-process: ${ctrl.subprocess||'N/A'}\nRisk Category: ${ctrl.riskcat||'N/A'}\nRisk Name: ${ctrl.riskname||'N/A'}\nRisk Description: ${ctrl.riskdesc||'N/A'}\nControl Description: ${ctrl.controldesc||'N/A'}\nTesting Steps (RCM): ${ctrl.testingsteps||'N/A'}\nFrequency: ${ctrl.freq||'N/A'}\nRisk Owner: ${ctrl.owner||'N/A'}`);
+      const resp = await fetch('/api/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4096,system:systemPrompt,messages:[{role:'user',content:singleMsg}]})});
+      const data = await resp.json();
+      if(!resp.ok) throw new Error(data.error||'API error');
+      const raw = data.content.map(b=>b.text||'').join('');
+      const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+      if(Array.isArray(parsed)) allResults.push(...parsed);
+      else allResults.push(parsed);
+    }
     clearInterval(iv);
-    const data=await response.json();
-    if(!response.ok) throw new Error(data.error||'API error');
-    const raw=data.content.map(b=>b.text||'').join('');
-    const results=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const results = allResults;
     updateClientResults(activeClientId, results, meta);
     renderResults(results, meta);
   } catch(err){
