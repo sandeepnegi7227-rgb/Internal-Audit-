@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AuditIQ — Controls Testing Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/7.8.2/docx.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0a1628;--navy2:#112240;--navy3:#1a3a5c;
+  --gold:#c9a84c;--gold2:#e8c96d;--gold-light:#faf3e0;
+  --teal:#0d7377;--teal-light:#e8f6f6;
+  --red:#c0392b;--red-light:#fdecea;
+  --green:#1a7a4a;--green-light:#e8f5ee;
+  --amber:#b7791f;--amber-light:#fffbeb;
+  --gray0:#f8f9fc;--gray1:#f0f2f7;--gray2:#e2e6ef;--gray3:#c8cdd9;--gray4:#8892a4;--gray5:#4a5568;--gray6:#2d3748;
+  --text:#1a202c;--radius:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  --header-h:60px;--nav-h:48px;--prog-h:52px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--gray0);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── FROZEN HEADER STACK ── */
+.sticky-top{position:sticky;top:0;z-index:300}
+
+header{background:var(--navy);height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;box-shadow:0 2px 20px rgba(0,0,0,.35)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:var(--navy);flex-shrink:0}
+.logo-text{color:#fff;font-size:15px;font-weight:600;letter-spacing:-.3px}
+.logo-text span{color:var(--gold);font-weight:300}
+.header-right{display:flex;align-items:center;gap:12px}
+.header-badge{background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.3);color:var(--gold2);font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;white-space:nowrap}
+.powered{color:rgba(255,255,255,.35);font-size:11px;white-space:nowrap}
+
+/* ── CLIENT NAV BAR ── */
+.client-nav{background:var(--navy2);border-bottom:1px solid rgba(255,255,255,.08);height:var(--nav-h);display:flex;align-items:center;padding:0 1.5rem;gap:8px;overflow-x:auto}
+.client-nav::-webkit-scrollbar{height:3px}.client-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+.client-tab{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:rgba(255,255,255,.45);border:1px solid transparent;white-space:nowrap;flex-shrink:0;transition:all .15s}
+.client-tab:hover{color:rgba(255,255,255,.75);background:rgba(255,255,255,.06)}
+.client-tab.active{color:#fff;background:rgba(201,168,76,.15);border-color:rgba(201,168,76,.35)}
+.client-tab .cdot{width:7px;height:7px;border-radius:50%;background:var(--gray3);flex-shrink:0}
+.client-tab.active .cdot{background:var(--gold)}
+.client-tab .cclose{margin-left:4px;color:rgba(255,255,255,.3);font-size:14px;line-height:1;padding:0 2px;background:none;border:none;cursor:pointer;font-family:inherit}
+.client-tab .cclose:hover{color:var(--red)}
+.add-client-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;color:var(--gold);border:1px dashed rgba(201,168,76,.4);cursor:pointer;white-space:nowrap;flex-shrink:0;background:none;font-family:inherit;transition:all .15s}
+.add-client-btn:hover{background:rgba(201,168,76,.08);border-color:var(--gold)}
+
+/* ── PROGRESS BAR ── */
+.progress-bar{background:var(--navy);border-bottom:1px solid rgba(255,255,255,.06);height:var(--prog-h);display:flex;align-items:center;padding:0 1.5rem;gap:0;overflow-x:auto}
+.progress-bar::-webkit-scrollbar{height:2px}
+.prog-step{display:flex;align-items:center;gap:7px;padding:12px 16px;color:rgba(255,255,255,.3);font-size:12px;font-weight:500;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
+.prog-step .pnum{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.07);color:rgba(255,255,255,.3);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.prog-step.active{color:#fff;border-bottom-color:var(--gold)}
+.prog-step.active .pnum{background:var(--gold);color:var(--navy)}
+.prog-step.done{color:rgba(255,255,255,.55)}
+.prog-step.done .pnum{background:rgba(26,122,74,.55);color:#fff}
+.prog-divider{color:rgba(255,255,255,.12);font-size:13px;flex-shrink:0}
+
+/* ── MAIN ── */
+main{max-width:980px;margin:0 auto;padding:2rem 1.5rem}
+.panel{display:none}.panel.active{display:block}
+.page-title{font-size:22px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--gray4);margin-bottom:2rem}
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--gray2);border-radius:12px;padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
+.card-header{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid var(--gray1)}
+.card-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.ci-navy{background:var(--navy);color:var(--gold)}
+.ci-teal{background:var(--teal-light);color:var(--teal)}
+.ci-gold{background:var(--gold-light);color:var(--amber)}
+.card-title{font-size:14px;font-weight:600;color:var(--navy)}
+.card-subtitle{font-size:12px;color:var(--gray4);margin-top:1px}
+
+/* ── FORMS ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+.field{margin-bottom:1rem}.field:last-child{margin-bottom:0}
+label{display:block;font-size:11px;font-weight:600;color:var(--gray5);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.req{color:var(--red)}
+input[type=text],select,textarea{width:100%;font-family:'Inter',sans-serif;font-size:13px;color:var(--text);background:#fff;border:1.5px solid var(--gray2);border-radius:var(--radius);padding:9px 12px;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--navy3);box-shadow:0 0 0 3px rgba(10,22,40,.07)}
+textarea{resize:vertical;min-height:80px}
+.err{font-size:11px;color:var(--red);margin-top:3px;display:none}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .15s}
+.btn-primary{background:var(--navy);color:#fff}.btn-primary:hover{background:var(--navy2);transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn-gold{background:var(--gold);color:var(--navy)}.btn-gold:hover{background:var(--gold2)}
+.btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--gray2)}.btn-outline:hover{background:var(--gray0)}
+.btn-danger{background:#fff;color:var(--red);border:1.5px solid #fca5a5;font-size:12px;padding:5px 10px}
+.btn-word{background:#2b579a;color:#fff}.btn-word:hover{background:#1e3f6f}
+.btn-row{display:flex;gap:8px;margin-top:1.5rem;align-items:center;flex-wrap:wrap}
+
+/* ── UPLOAD ── */
+.upload-zone{border:2px dashed var(--gray3);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;background:var(--gray0);transition:all .2s;position:relative}
+.upload-zone:hover{border-color:var(--navy3);background:#f0f4ff}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:30px;margin-bottom:8px;display:block}
+.upload-title{font-size:14px;font-weight:600;color:var(--navy);margin-bottom:4px}
+.upload-sub{font-size:12px;color:var(--gray4)}
+
+/* ── FILE CHIPS ── */
+.file-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.file-chip{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);padding:7px 12px}
+.ficon{width:26px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.fi-xl{background:#e8f5ee;color:var(--green)}.fi-pdf{background:#fdecea;color:var(--red)}.fi-img{background:#e8f0fc;color:#1a56db}.fi-doc{background:var(--gold-light);color:var(--amber)}
+.fname{font-size:12px;font-weight:500;color:var(--navy);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fsize{font-size:11px;color:var(--gray4);white-space:nowrap}
+.fremove{background:none;border:none;cursor:pointer;color:var(--gray4);font-size:16px;padding:0;line-height:1}
+.fremove:hover{color:var(--red)}
+
+/* ── RCM TABLE ── */
+.rcm-wrap{overflow-x:auto;margin-top:10px;border-radius:8px;border:1px solid var(--gray2)}
+.rcm-table{width:100%;border-collapse:collapse;font-size:12px}
+.rcm-table th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-weight:500;white-space:nowrap}
+.rcm-table td{padding:7px 10px;border-bottom:1px solid var(--gray1);vertical-align:top;color:var(--gray6)}
+.rcm-table tr:last-child td{border-bottom:none}
+.rcm-table tr:hover td{background:var(--gray0)}
+.rcm-badge{display:inline-flex;align-items:center;gap:5px;background:var(--teal-light);color:var(--teal);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:10px}
+
+/* ── CTRL CHIPS ── */
+.ctrl-list{display:flex;flex-direction:column;gap:5px;margin-bottom:1rem;max-height:420px;overflow-y:auto;padding-right:4px}
+.ctrl-list::-webkit-scrollbar{width:4px}.ctrl-list::-webkit-scrollbar-thumb{background:var(--gray3);border-radius:2px}
+.ctrl-chip{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--gray2);border-radius:var(--radius);padding:9px 12px;cursor:pointer;transition:border-color .15s}
+.ctrl-chip:hover{border-color:var(--navy3)}
+.ctrl-chip input[type=checkbox]{width:15px;height:15px;accent-color:var(--navy);cursor:pointer;flex-shrink:0}
+.cid{font-size:12px;font-weight:700;color:var(--navy);min-width:75px}
+.cmeta{flex:1;min-width:0}
+.cname{font-size:12px;font-weight:500;color:var(--gray6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cdesc{font-size:11px;color:var(--gray4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.freq-tag{font-size:10px;background:var(--gold-light);color:var(--amber);padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap;flex-shrink:0}
+
+/* ── RESULTS ── */
+.results-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px}
+.results-title{font-size:20px;font-weight:700;color:var(--navy)}
+.results-meta{font-size:12px;color:var(--gray4);margin-top:3px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:1.5rem}
+.sc{background:#fff;border:1px solid var(--gray2);border-radius:10px;padding:12px;text-align:center;box-shadow:var(--shadow)}
+.sc .sv{font-size:26px;font-weight:700;margin-bottom:2px}
+.sc .sl{font-size:10px;color:var(--gray4);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.sc-pass .sv{color:var(--green)}.sc-exc .sv{color:var(--red)}.sc-part .sv{color:var(--amber)}.sc-un .sv{color:var(--gray4)}
+
+.rc{background:#fff;border:1px solid var(--gray2);border-radius:12px;margin-bottom:1.25rem;box-shadow:var(--shadow);overflow:hidden}
+.rc-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-left:4px solid var(--navy)}
+.rc-head.pass{border-left-color:var(--green)}.rc-head.exc{border-left-color:var(--red)}.rc-head.part{border-left-color:var(--amber)}.rc-head.un{border-left-color:var(--gray3)}
+.rc-id{font-size:15px;font-weight:700;color:var(--navy)}
+.rc-proc{font-size:11px;color:var(--gray4);margin-top:2px}
+.rc-body{padding:1.25rem}
+.rc-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.rc-section h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gray4);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--gray1)}
+.rrow{margin-bottom:6px}
+.rlbl{font-size:11px;font-weight:600;color:var(--gray4);margin-bottom:1px}
+.rval{font-size:12px;color:var(--gray6);line-height:1.5}
+.rc-full{margin-top:1rem;padding-top:1rem;border-top:1px solid var(--gray1)}
+
+.badge{font-size:11px;font-weight:700;padding:3px 11px;border-radius:20px}
+.bp{background:var(--green-light);color:var(--green)}.be{background:var(--red-light);color:var(--red)}.bpa{background:var(--amber-light);color:var(--amber)}.bu2{background:var(--gray1);color:var(--gray4)}
+.alert{border-radius:var(--radius);padding:9px 12px;font-size:12px;margin-top:8px;display:flex;gap:8px;align-items:flex-start;line-height:1.5}
+.ae{background:var(--red-light);color:var(--red);border:1px solid #fca5a5}
+.aw{background:var(--amber-light);color:var(--amber);border:1px solid #fcd34d}
+.ai{background:var(--teal-light);color:var(--teal);border:1px solid #a7d8d8}
+.rev-note{background:var(--navy);color:rgba(255,255,255,.75);border-radius:var(--radius);padding:10px 14px;font-size:12px;margin-top:10px;display:flex;gap:8px;align-items:flex-start}
+.rev-note strong{color:var(--gold)}
+
+/* ── CLIENT HUB ── */
+.hub{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;margin-top:1rem}
+.hub-card{background:#fff;border:1px solid var(--gray2);border-radius:12px;padding:1.25rem;box-shadow:var(--shadow);cursor:pointer;transition:all .2s;position:relative}
+.hub-card:hover{border-color:var(--navy3);transform:translateY(-2px);box-shadow:var(--shadow-lg,0 8px 32px rgba(0,0,0,.12))}
+.hub-card .hc-name{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.hub-card .hc-meta{font-size:12px;color:var(--gray4)}
+.hub-card .hc-stats{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.hc-pill{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500}
+.hc-pill.green{background:var(--green-light);color:var(--green)}
+.hc-pill.red{background:var(--red-light);color:var(--red)}
+.hc-pill.gray{background:var(--gray1);color:var(--gray5)}
+.hub-card .hc-del{position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;color:var(--gray3);font-size:16px;padding:2px;transition:color .15s}
+.hub-card .hc-del:hover{color:var(--red)}
+.new-client-card{background:var(--gray0);border:2px dashed var(--gray3);border-radius:12px;padding:1.25rem;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;min-height:120px}
+.new-client-card:hover{border-color:var(--gold);background:var(--gold-light)}
+.new-client-card span{font-size:13px;font-weight:600;color:var(--gold);margin-top:8px}
+
+/* ── LOADING ── */
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center}
+.lspinner{width:44px;height:44px;border:3px solid var(--gray2);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:1.5rem}
+.lsteps{margin-top:1.5rem;display:flex;flex-direction:column;gap:5px;text-align:left;max-width:300px}
+.lstep{font-size:12px;color:var(--gray4);display:flex;align-items:center;gap:8px}
+.lstep.active{color:var(--navy);font-weight:500}
+.lstep .dot{width:6px;height:6px;border-radius:50%;background:var(--gray3);flex-shrink:0}
+.lstep.active .dot{background:var(--gold)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+hr.div{border:none;border-top:1px solid var(--gray1);margin:1rem 0}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:1rem}
+.modal-row{display:flex;gap:8px;margin-top:1rem;justify-content:flex-end}
+
+@media print{
+  .sticky-top,.btn-row,.btn{display:none!important}
+  .rc{page-break-inside:avoid;box-shadow:none;border:1px solid #ccc}
+  main{padding:0;max-width:100%}
+}
+@media(max-width:640px){
+  main{padding:1rem}
+  .grid2,.grid3,.rc-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ── FROZEN HEADER (sticky-top wraps all 3 bars) ── -->
+<div class="sticky-top">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">A</div>
+      <div class="logo-text">Audit<span>IQ</span></div>
+    </div>
+    <div class="header-right">
+      <span class="header-badge">⚖ Controls Testing Agent</span>
+      <span class="powered">Powered by Claude</span>
+    </div>
+  </header>
+
+  <div class="client-nav" id="client-nav">
+    <!-- client tabs injected here -->
+    <button class="add-client-btn" onclick="openNewClientModal()">+ New client</button>
+  </div>
+
+  <div class="progress-bar" id="progress-bar">
+    <div class="prog-step active" id="ps1" onclick="goTo(1)"><span class="pnum">1</span>Engagement setup</div>
+    <span class="prog-divider">›</span>
+    <div class="prog-step" id="ps2" onclick="goTo(2)"><span class="pnum">2</span>Upload RCM</div>
+    <span class="prog-divider">›</span>
+    <div class="prog-step" id="ps3" onclick="goTo(3)"><span class="pnum">3</span>Select controls</div>
+    <span class="prog-divider">›</span>
+    <div class="prog-step" id="ps4" onclick="goTo(4)"><span class="pnum">4</span>Evidence</div>
+    <span class="prog-divider">›</span>
+    <div class="prog-step" id="ps5" onclick="goTo(5)"><span class="pnum">5</span>Results</div>
+  </div>
+</div>
+
+<!-- ── NEW CLIENT MODAL ── -->
+<div class="modal-bg" id="new-client-modal">
+  <div class="modal">
+    <h3>Add new client</h3>
+    <div class="field"><label>Client name <span class="req">*</span></label><input type="text" id="nc-name" placeholder="e.g. Dubai Land Department"/><p class="err" id="err-nc">Required</p></div>
+    <div class="field"><label>Engagement name</label><input type="text" id="nc-eng" placeholder="e.g. FY2024 Internal Audit"/></div>
+    <div class="modal-row">
+      <button class="btn btn-outline" onclick="closeNewClientModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createClient()">Create client</button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+<!-- STEP 1 -->
+<div class="panel active" id="panel-1">
+  <div class="page-title" id="p1-title">Engagement setup</div>
+  <div class="page-sub">Enter the basic details of the audit engagement before uploading your RCM.</div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon ci-navy">📋</div><div><div class="card-title">Engagement details</div><div class="card-subtitle">Basic identification information</div></div></div>
+    <div class="grid2">
+      <div class="field"><label>Client name <span class="req">*</span></label><input type="text" id="client" placeholder="e.g. Dubai Land Department"/><p class="err" id="err-client">Required</p></div>
+      <div class="field"><label>Engagement name</label><input type="text" id="engagement" placeholder="e.g. FY2024 Internal Audit"/></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Audit period</label><input type="text" id="period" placeholder="e.g. 1 Jan – 31 Dec 2024"/></div>
+      <div class="field"><label>Prepared by</label><input type="text" id="auditor" placeholder="e.g. Sandeep"/></div>
+      <div class="field"><label>Reviewed by</label><input type="text" id="reviewer" placeholder="e.g. Ankur Agrawal"/></div>
+    </div>
+    <div class="field"><label>Process / area under review</label><input type="text" id="process" placeholder="e.g. Revenue recognition, Vendor payments, IT access management"/></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon ci-gold">📁</div><div><div class="card-title">Prior-year context</div><div class="card-subtitle">Optional — helps identify recurring exceptions</div></div></div>
+    <div class="field"><label>Prior-year observations & exceptions</label><textarea id="prior-year" rows="4" placeholder="Paste prior-year exceptions, management responses, or recurring observations. The agent will factor these into its testing approach."></textarea></div>
+    <div class="field"><label>Audit methodology</label><input type="text" id="methodology" placeholder="e.g. IIA Standards, COSO Framework, ISO 31000"/></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="step1Next()">Next: Upload RCM →</button></div>
+</div>
+
+<!-- STEP 2 -->
+<div class="panel" id="panel-2">
+  <div class="page-title">Upload Risk & Control Matrix</div>
+  <div class="page-sub">Upload your RCM Excel file. All controls are extracted automatically from the standard column headers.</div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon ci-teal">📊</div><div><div class="card-title">RCM Excel upload</div><div class="card-subtitle">Supports .xlsx · .xls · .csv</div></div></div>
+    <div class="upload-zone" onclick="document.getElementById('rcm-file').click()">
+      <input type="file" id="rcm-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleRCM(this)"/>
+      <span class="upload-icon">📊</span>
+      <div class="upload-title">Click to upload your RCM Excel file</div>
+      <div class="upload-sub">Auto-reads: Unique ID · Business Unit · Department · Process · Sub Process · Risk Category · Risk Name · Risk Description · Control Description · Testing Steps · Control Frequency · Risk Owner</div>
+    </div>
+    <div id="rcm-status" style="display:none;margin-top:12px"></div>
+    <div id="rcm-preview" style="display:none;margin-top:12px"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="goTo(1)">← Back</button>
+    <button class="btn btn-primary" onclick="step2Next()">Next: Select controls →</button>
+  </div>
+</div>
+
+<!-- STEP 3 -->
+<div class="panel" id="panel-3">
+  <div class="page-title">Select controls to test</div>
+  <div class="page-sub">Select which controls to include in this testing engagement.</div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon ci-navy">☑</div><div><div class="card-title">RCM controls</div><div class="card-subtitle" id="ctrl-count-sub">Select controls for testing</div></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="selAll(true)">Select all</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="selAll(false)">Deselect all</button>
+      <input type="text" id="ctrl-filter" placeholder="Filter by ID, risk, process..." style="flex:1;min-width:160px;font-size:12px;padding:6px 10px" oninput="filterCtrls()"/>
+    </div>
+    <div class="ctrl-list" id="ctrl-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon ci-gold">✏️</div><div><div class="card-title">Add manual control</div><div class="card-subtitle">Optional — for controls not in the RCM</div></div></div>
+    <div class="grid2">
+      <div class="field"><label>Control ID</label><input type="text" id="m-id" placeholder="e.g. CTR-99"/></div>
+      <div class="field"><label>Frequency</label><select id="m-freq"><option value="">Select...</option><option>Daily</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option>Annual</option><option>Per transaction</option><option>Ad hoc</option></select></div>
+    </div>
+    <div class="field"><label>Risk description</label><input type="text" id="m-risk" placeholder="What risk does this control address?"/></div>
+    <div class="field"><label>Control description</label><textarea id="m-desc" rows="2" placeholder="How does the control operate?"></textarea></div>
+    <button class="btn btn-outline" style="font-size:12px" onclick="addManual()">+ Add manual control</button>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="goTo(2)">← Back</button>
+    <button class="btn btn-primary" onclick="step3Next()">Next: Upload evidence →</button>
+  </div>
+</div>
+
+<!-- STEP 4 -->
+<div class="panel" id="panel-4">
+  <div class="page-title">Evidence & supporting documents</div>
+  <div class="page-sub">Upload all supporting evidence. The agent will analyse each file and map it to the relevant controls.</div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon ci-teal">📎</div><div><div class="card-title">Upload evidence files</div><div class="card-subtitle">PDF · Excel · Word · Images · CSV · Text</div></div></div>
+    <div class="upload-zone">
+      <input type="file" id="ev-files" multiple accept=".pdf,.xlsx,.xls,.csv,.doc,.docx,.png,.jpg,.jpeg,.gif,.bmp,.txt" onchange="handleEvidence(this)"/>
+      <span class="upload-icon">📎</span>
+      <div class="upload-title">Click to upload evidence files</div>
+      <div class="upload-sub">Transaction listings · Approval logs · Reconciliations · Policy documents · Screenshots · System reports</div>
+    </div>
+    <div class="file-list" id="ev-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-icon ci-gold">📝</div><div><div class="card-title">Additional context</div><div class="card-subtitle">Paste data or describe files not uploaded</div></div></div>
+    <div class="field"><label>Paste evidence / data</label><textarea id="evidence-text" rows="5" placeholder="Paste transaction data, approval logs, exception reports, system outputs, or any evidence that cannot be uploaded..."></textarea></div>
+    <div class="field"><label>Describe additional files available</label><textarea id="files-desc" rows="3" placeholder="List files available but not uploaded. E.g:&#10;• Invoice register — Excel, Jan–Dec 2024, 1,240 rows&#10;• Bank statements — 12 monthly PDFs"></textarea></div>
+    <div class="grid2">
+      <div class="field"><label>Sample selected</label><textarea id="sample-text" rows="3" placeholder="List sample items, or leave blank for agent to recommend."></textarea></div>
+      <div class="field"><label>Sampling methodology</label><input type="text" id="sampling" placeholder="e.g. Random — IIA attribute sampling, 25 items"/></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="goTo(3)">← Back</button>
+    <button class="btn btn-gold" onclick="runTesting()">▶ &nbsp;Run controls testing</button>
+  </div>
+</div>
+
+<!-- STEP 5 -->
+<div class="panel" id="panel-5">
+  <div id="results-area">
+    <div style="text-align:center;padding:4rem 1rem;color:var(--gray4)">
+      <div style="font-size:48px;opacity:.25;margin-bottom:12px">📋</div>
+      <p>No results yet. Complete the setup and run controls testing.</p>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── STATE ──
+let clients = JSON.parse(localStorage.getItem('auditiq-clients') || '[]');
+let activeClientId = null;
+let rcmControls = [];
+let evidenceFiles = [];
+
+// ── PERSISTENCE ──
+function saveClients(){ localStorage.setItem('auditiq-clients', JSON.stringify(clients)); }
+
+function getClient(id){ return clients.find(c => c.id === id); }
+
+function updateClientResults(id, results, meta){
+  const c = getClient(id);
+  if(c){ c.lastResults = results; c.lastMeta = meta; c.lastRun = new Date().toLocaleDateString('en-GB'); saveClients(); renderClientNav(); }
+}
+
+// ── CLIENT MANAGEMENT ──
+function openNewClientModal(){ document.getElementById('new-client-modal').classList.add('open'); document.getElementById('nc-name').focus(); }
+function closeNewClientModal(){ document.getElementById('new-client-modal').classList.remove('open'); document.getElementById('nc-name').value=''; document.getElementById('nc-eng').value=''; document.getElementById('err-nc').style.display='none'; }
+
+function createClient(){
+  const name = document.getElementById('nc-name').value.trim();
+  if(!name){ document.getElementById('err-nc').style.display='block'; return; }
+  const id = 'c_' + Date.now();
+  clients.push({ id, name, engagement: document.getElementById('nc-eng').value.trim(), created: new Date().toLocaleDateString('en-GB'), lastRun: null, lastResults: null });
+  saveClients();
+  closeNewClientModal();
+  renderClientNav();
+  switchClient(id);
+}
+
+function deleteClient(id, e){
+  e.stopPropagation();
+  if(!confirm('Delete this client and all their data?')) return;
+  clients = clients.filter(c => c.id !== id);
+  saveClients();
+  if(activeClientId === id){ activeClientId = clients.length ? clients[0].id : null; }
+  renderClientNav();
+  if(activeClientId) switchClient(activeClientId);
+  else resetWorkspace();
+}
+
+function switchClient(id){
+  activeClientId = id;
+  const c = getClient(id);
+  if(!c) return;
+  renderClientNav();
+  // Pre-fill engagement fields
+  document.getElementById('client').value = c.name || '';
+  document.getElementById('engagement').value = c.engagement || '';
+  // If they have saved results go straight to results
+  if(c.lastResults){
+    resetSteps();
+    goTo(5);
+    renderResults(c.lastResults, c.lastMeta || {client: c.name});
+  } else {
+    resetWorkspace();
+    goTo(1);
+  }
+}
+
+function renderClientNav(){
+  const nav = document.getElementById('client-nav');
+  const addBtn = nav.querySelector('.add-client-btn');
+  // Remove old tabs
+  nav.querySelectorAll('.client-tab').forEach(t => t.remove());
+  clients.forEach(c => {
+    const tab = document.createElement('div');
+    tab.className = 'client-tab' + (c.id === activeClientId ? ' active' : '');
+    tab.innerHTML = `<span class="cdot"></span>${c.name}<button class="cclose" title="Remove client">×</button>`;
+    tab.onclick = () => switchClient(c.id);
+    tab.querySelector('.cclose').onclick = (e) => deleteClient(c.id, e);
+    nav.insertBefore(tab, addBtn);
+  });
+}
+
+function resetWorkspace(){
+  rcmControls = []; evidenceFiles = [];
+  ['client','engagement','period','auditor','reviewer','process','prior-year','methodology','evidence-text','files-desc','sample-text','sampling'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  document.getElementById('rcm-status').style.display='none';
+  document.getElementById('rcm-preview').style.display='none';
+  document.getElementById('ctrl-list').innerHTML='';
+  document.getElementById('ev-list').innerHTML='';
+  document.getElementById('results-area').innerHTML='<div style="text-align:center;padding:4rem 1rem;color:var(--gray4)"><div style="font-size:48px;opacity:.25;margin-bottom:12px">📋</div><p>No results yet.</p></div>';
+  resetSteps();
+}
+
+function resetSteps(){
+  document.querySelectorAll('.prog-step').forEach(s => s.classList.remove('active','done'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('ps1').classList.add('active');
+  document.getElementById('panel-1').classList.add('active');
+}
+
+// ── NAVIGATION ──
+function goTo(n){
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.prog-step').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  document.getElementById('ps'+n).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── STEP 1 ──
+function step1Next(){
+  const client = document.getElementById('client').value.trim();
+  if(!client){ document.getElementById('err-client').style.display='block'; return; }
+  document.getElementById('err-client').style.display='none';
+  // Update active client name
+  if(activeClientId){ const c = getClient(activeClientId); if(c){ c.name=client; c.engagement=document.getElementById('engagement').value.trim(); saveClients(); renderClientNav(); } }
+  document.getElementById('ps1').classList.add('done');
+  goTo(2);
+}
+
+// ── STEP 2: RCM ──
+function handleRCM(input){
+  const file = input.files[0]; if(!file) return;
+  const status = document.getElementById('rcm-status');
+  status.style.display='block';
+  status.innerHTML='<div style="color:var(--teal);font-size:13px;font-weight:500">⏳ Reading RCM file...</div>';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!rows.length){ status.innerHTML='<div style="color:var(--red);font-size:13px">No data found.</div>'; return; }
+      const cm = {
+        id:['Unique ID','UniqueID','Control ID','ID','unique id','control id'],
+        bu:['Business Unit','BusinessUnit','business unit'],
+        dept:['Department','Dept'],
+        process:['Process','process'],
+        subprocess:['Sub process','Sub Process','Subprocess','subprocess'],
+        riskcat:['Risk Category','RiskCategory','risk category'],
+        riskname:['Risk Name','RiskName','risk name','Risk'],
+        riskdesc:['Risk Description','RiskDescription','risk description','Risk Desc'],
+        controldesc:['Control Description','ControlDescription','control description','Control'],
+        testingsteps:['Testing Steps','TestingSteps','testing steps','Test Steps'],
+        freq:['Control Frequency','ControlFrequency','Frequency','frequency','control frequency'],
+        owner:['Risk Owner','RiskOwner','risk owner','Owner']
+      };
+      function fc(row,aliases){ const keys=Object.keys(row); for(const a of aliases){ const f=keys.find(k=>k.toLowerCase().trim()===a.toLowerCase().trim()); if(f) return row[f]||''; } return ''; }
+      rcmControls = rows.map((row,i) => ({ id:fc(row,cm.id)||`CTR-${String(i+1).padStart(2,'0')}`, bu:fc(row,cm.bu), dept:fc(row,cm.dept), process:fc(row,cm.process), subprocess:fc(row,cm.subprocess), riskcat:fc(row,cm.riskcat), riskname:fc(row,cm.riskname), riskdesc:fc(row,cm.riskdesc), controldesc:fc(row,cm.controldesc), testingsteps:fc(row,cm.testingsteps), freq:fc(row,cm.freq), owner:fc(row,cm.owner), selected:true }));
+      status.innerHTML=`<div class="rcm-badge">✓ ${rcmControls.length} controls extracted from "${file.name}"</div>`;
+      const preview = document.getElementById('rcm-preview');
+      preview.style.display='block';
+      preview.innerHTML=`<div class="rcm-wrap"><table class="rcm-table"><thead><tr><th>ID</th><th>Process</th><th>Risk name</th><th>Control description</th><th>Frequency</th><th>Owner</th></tr></thead><tbody>${rcmControls.slice(0,5).map(c=>`<tr><td><strong>${c.id}</strong></td><td>${c.process}</td><td>${(c.riskname||'').substring(0,45)}${(c.riskname||'').length>45?'…':''}</td><td>${(c.controldesc||'').substring(0,55)}${(c.controldesc||'').length>55?'…':''}</td><td>${c.freq}</td><td>${c.owner}</td></tr>`).join('')}</tbody></table></div>${rcmControls.length>5?`<p style="font-size:11px;color:var(--gray4);margin-top:6px">Showing 5 of ${rcmControls.length} controls.</p>`:''}`;
+    } catch(err){ status.innerHTML=`<div style="color:var(--red);font-size:13px">Error: ${err.message}</div>`; }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function step2Next(){
+  if(!rcmControls.length){ alert('Please upload your RCM file first.'); return; }
+  document.getElementById('ps2').classList.add('done');
+  renderCtrlList();
+  goTo(3);
+}
+
+// ── STEP 3: CONTROLS ──
+function renderCtrlList(filter=''){
+  const fl = filter.toLowerCase();
+  const list = document.getElementById('ctrl-list');
+  const filtered = rcmControls.filter(c => !fl || c.id.toLowerCase().includes(fl) || (c.riskname||'').toLowerCase().includes(fl) || (c.process||'').toLowerCase().includes(fl));
+  document.getElementById('ctrl-count-sub').textContent = `${rcmControls.filter(c=>c.selected).length} of ${rcmControls.length} selected`;
+  list.innerHTML = filtered.map((c) => {
+    const idx = rcmControls.indexOf(c);
+    return `<div class="ctrl-chip" onclick="toggleCtrl(${idx})">
+      <input type="checkbox" ${c.selected?'checked':''} onclick="event.stopPropagation();toggleCtrl(${idx})"/>
+      <div class="cid">${c.id}</div>
+      <div class="cmeta"><div class="cname">${c.riskname||c.riskdesc.substring(0,50)||'No risk name'}</div><div class="cdesc">${c.process}${c.subprocess?' › '+c.subprocess:''}</div></div>
+      <span class="freq-tag">${c.freq||'N/A'}</span>
+    </div>`;
+  }).join('');
+  if(!filtered.length) list.innerHTML='<p style="color:var(--gray4);font-size:13px;padding:.5rem 0">No controls match filter.</p>';
+}
+function toggleCtrl(idx){ rcmControls[idx].selected=!rcmControls[idx].selected; renderCtrlList(document.getElementById('ctrl-filter').value); }
+function selAll(v){ rcmControls.forEach(c=>c.selected=v); renderCtrlList(document.getElementById('ctrl-filter').value); }
+function filterCtrls(){ renderCtrlList(document.getElementById('ctrl-filter').value); }
+function addManual(){
+  const id=document.getElementById('m-id').value.trim(), desc=document.getElementById('m-desc').value.trim();
+  if(!id||!desc){ alert('ID and description required.'); return; }
+  const risk=document.getElementById('m-risk').value.trim();
+  rcmControls.push({id, riskname:risk, riskdesc:risk, controldesc:desc, freq:document.getElementById('m-freq').value, process:'Manual', bu:'', dept:'', subprocess:'', riskcat:'', testingsteps:'', owner:'', selected:true});
+  ['m-id','m-risk','m-desc'].forEach(f=>document.getElementById(f).value='');
+  document.getElementById('m-freq').value='';
+  renderCtrlList();
+}
+function step3Next(){
+  if(!rcmControls.filter(c=>c.selected).length){ alert('Select at least one control.'); return; }
+  document.getElementById('ps3').classList.add('done');
+  goTo(4);
+}
+
+// ── STEP 4: EVIDENCE ──
+function handleEvidence(input){
+  Array.from(input.files).forEach(f=>{ if(!evidenceFiles.find(e=>e.name===f.name)) evidenceFiles.push(f); });
+  renderEvList(); input.value='';
+}
+function getFileIcon(name){
+  const ext=(name.split('.').pop()||'').toLowerCase();
+  if(['xlsx','xls','csv'].includes(ext)) return{icon:'📊',cls:'fi-xl'};
+  if(ext==='pdf') return{icon:'📄',cls:'fi-pdf'};
+  if(['png','jpg','jpeg','gif','bmp'].includes(ext)) return{icon:'🖼',cls:'fi-img'};
+  return{icon:'📝',cls:'fi-doc'};
+}
+function fmtSz(b){ if(b<1024) return b+' B'; if(b<1048576) return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+function renderEvList(){
+  document.getElementById('ev-list').innerHTML=evidenceFiles.map((f,i)=>{
+    const{icon,cls}=getFileIcon(f.name);
+    return`<div class="file-chip"><div class="ficon ${cls}">${icon}</div><span class="fname">${f.name}</span><span class="fsize">${fmtSz(f.size)}</span><button class="fremove" onclick="removeFile(${i})">×</button></div>`;
+  }).join('');
+}
+function removeFile(i){ evidenceFiles.splice(i,1); renderEvList(); }
+
+async function readFile(file){
+  return new Promise(resolve=>{
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+    if(['xlsx','xls'].includes(ext)){
+      const r=new FileReader();
+      r.onload=e=>{
+        try{
+          const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+          let txt=`[Excel: ${file.name}]\n`;
+          wb.SheetNames.forEach(sn=>{
+            const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''});
+            txt+=`Sheet: ${sn}\n`;
+            if(rows.length){ txt+=Object.keys(rows[0]).join(' | ')+'\n'; rows.slice(0,100).forEach(r=>txt+=Object.values(r).join(' | ')+'\n'); if(rows.length>100) txt+=`...+${rows.length-100} more rows\n`; }
+          });
+          resolve(txt);
+        } catch{ resolve(`[Excel: ${file.name} — parse error]`); }
+      };
+      r.readAsArrayBuffer(file);
+    } else if(['png','jpg','jpeg','gif','bmp'].includes(ext)){
+      resolve(`[Image: ${file.name} — ${fmtSz(file.size)}. Please describe this image's content in the evidence text field.]`);
+    } else if(ext==='pdf'){
+      resolve(`[PDF: ${file.name} — ${fmtSz(file.size)}. Please describe key content in the evidence text field.]`);
+    } else {
+      const r=new FileReader();
+      r.onload=e=>resolve(`[File: ${file.name}]\n${(e.target.result||'').substring(0,5000)}`);
+      r.onerror=()=>resolve(`[File: ${file.name} — unreadable]`);
+      r.readAsText(file);
+    }
+  });
+}
+
+// ── RUN TESTING ──
+async function runTesting(){
+  const sel=rcmControls.filter(c=>c.selected);
+  if(!sel.length){ alert('No controls selected.'); return; }
+  document.getElementById('ps4').classList.add('done');
+  goTo(5);
+  const area=document.getElementById('results-area');
+  const lsteps=['Reading evidence files...','Mapping evidence to controls...','Performing control testing...','Identifying exceptions...','Preparing audit working papers...'];
+  let li=0;
+  area.innerHTML=`<div class="loading-screen"><div class="lspinner"></div><div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:6px">Running controls testing</div><div style="font-size:13px;color:var(--gray4)">Analysing ${sel.length} control${sel.length>1?'s':''}…</div><div class="lsteps">${lsteps.map((s,i)=>`<div class="lstep${i===0?' active':''}" id="ls${i}"><span class="dot"></span>${s}</div>`).join('')}</div></div>`;
+  const iv=setInterval(()=>{ if(li>0) document.getElementById('ls'+(li-1))?.classList.remove('active'); if(li<lsteps.length){ document.getElementById('ls'+li)?.classList.add('active'); li++; } },1800);
+
+  const fileContents=await Promise.all(evidenceFiles.map(f=>readFile(f)));
+  const meta={
+    client:document.getElementById('client').value.trim()||'Client',
+    engagement:document.getElementById('engagement').value.trim(),
+    period:document.getElementById('period').value.trim(),
+    auditor:document.getElementById('auditor').value.trim(),
+    reviewer:document.getElementById('reviewer').value.trim(),
+    process:document.getElementById('process').value.trim()
+  };
+
+  const systemPrompt=`You are a Senior Internal Audit Manager at a Big 4 consulting firm performing controls testing.
+
+For each control, you must:
+1. Understand the risk, control objective, description, frequency, population and expected operation.
+2. Design an appropriate testing procedure based on the control type and audit methodology.
+3. Evaluate all evidence provided against the control requirements.
+4. Identify exceptions, deviations, missing evidence, or unusual items.
+5. Document testing performed with clear evidence attribution.
+6. Provide an objective test result and conclusion.
+7. Consider prior-year observations — never copy prior-year conclusions without independent testing.
+
+Principles:
+- Never assume evidence exists if not provided. Never treat missing evidence as a pass.
+- Results: Pass | Exception | Partially Tested | Unable to Test | Not Applicable
+- Identify source of every evidence piece used.
+- State what additional evidence is needed when insufficient.
+- Never fabricate evidence or results. Highlight all assumptions.
+
+Respond ONLY with a valid JSON array. No preamble, no markdown, no backticks. Keys per element:
+controlId, businessUnit, department, process, subprocess, riskCategory, riskName, riskDescription, controlDescription, controlFrequency, riskOwner, testingProcedure, population, sampleSelected, evidenceReviewed, testingPerformed, exceptionsIdentified, testResult, conclusion, additionalInfoRequired, priorYearObservations, assumptions, overallRiskRating
+
+testResult: exactly one of: Pass | Exception | Partially Tested | Unable to Test | Not Applicable
+overallRiskRating: exactly one of: Low | Medium | High | Critical`;
+
+  const userMsg=`CLIENT: ${meta.client}\nENGAGEMENT: ${meta.engagement||'Internal Audit'}\nAUDIT PERIOD: ${meta.period||'Not specified'}\nPREPARED BY: ${meta.auditor||'Not specified'}\nREVIEWED BY: ${meta.reviewer||'Not specified'}\nPROCESS: ${meta.process||'Not specified'}\nMETHODOLOGY: ${document.getElementById('methodology').value.trim()||'IIA Standards'}\n\nPRIOR-YEAR OBSERVATIONS:\n${document.getElementById('prior-year').value.trim()||'None.'}\n\nEVIDENCE PROVIDED:\n${document.getElementById('evidence-text').value.trim()||'None.'}\n\nFILES UPLOADED:\n${fileContents.length?fileContents.join('\n\n---\n\n'):'None.'}\n\nADDITIONAL FILES DESCRIBED:\n${document.getElementById('files-desc').value.trim()||'None.'}\n\nSAMPLE SELECTED:\n${document.getElementById('sample-text').value.trim()||'Not drawn — recommend appropriate size per IIA guidelines.'}\n\nSAMPLING METHODOLOGY: ${document.getElementById('sampling').value.trim()||'Not specified.'}\n\nCONTROLS TO TEST (${sel.length}):\n${sel.map(c=>`\n=== ${c.id} ===\nBusiness Unit: ${c.bu||'N/A'}\nDepartment: ${c.dept||'N/A'}\nProcess: ${c.process||'N/A'}\nSub-process: ${c.subprocess||'N/A'}\nRisk Category: ${c.riskcat||'N/A'}\nRisk Name: ${c.riskname||'N/A'}\nRisk Description: ${c.riskdesc||'N/A'}\nControl Description: ${c.controldesc||'N/A'}\nTesting Steps (RCM): ${c.testingsteps||'N/A'}\nFrequency: ${c.freq||'N/A'}\nRisk Owner: ${c.owner||'N/A'}`).join('\n')}`;
+
+  try{
+    const response=await fetch('/api/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4096,system:systemPrompt,messages:[{role:'user',content:userMsg}]})});
+    clearInterval(iv);
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error||'API error');
+    const raw=data.content.map(b=>b.text||'').join('');
+    const results=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    updateClientResults(activeClientId, results, meta);
+    renderResults(results, meta);
+  } catch(err){
+    clearInterval(iv);
+    area.innerHTML=`<div class="card"><p style="color:var(--red);font-size:13px"><strong>Error:</strong> ${err.message}</p><p style="font-size:12px;color:var(--gray4);margin-top:6px">Check your API key in Vercel Environment Variables.</p></div>`;
+  }
+}
+
+// ── RENDER RESULTS ──
+function badge(r){
+  if(!r) return'';
+  if(r==='Pass') return`<span class="badge bp">✓ Pass</span>`;
+  if(r==='Exception') return`<span class="badge be">✗ Exception</span>`;
+  if(r.includes('Partially')) return`<span class="badge bpa">~ Partially tested</span>`;
+  if(r.includes('Unable')) return`<span class="badge bu2">— Unable to test</span>`;
+  if(r.includes('Not')) return`<span class="badge bu2">N/A</span>`;
+  return`<span class="badge bu2">${r}</span>`;
+}
+function hc(r){ if(!r) return''; if(r==='Pass') return'pass'; if(r==='Exception') return'exc'; if(r.includes('Partially')) return'part'; return'un'; }
+function rc(r){ if(!r) return'var(--gray4)'; if(r==='Critical') return'#7b1d1d'; if(r==='High') return'var(--red)'; if(r==='Medium') return'var(--amber)'; return'var(--green)'; }
+function fv(v){ return v && !['none','n/a','nil','not applicable','not specified'].includes((v||'').toLowerCase().trim()) ? v : null; }
+
+function renderResults(results, meta){
+  const area=document.getElementById('results-area');
+  const now=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const counts={pass:0,exc:0,part:0,un:0};
+  results.forEach(r=>{ const t=(r.testResult||'').trim(); if(t==='Pass') counts.pass++; else if(t==='Exception') counts.exc++; else if(t.includes('Partially')) counts.part++; else counts.un++; });
+
+  let html=`
+  <div class="results-header">
+    <div>
+      <div class="results-title">${meta.client} — Controls Testing Results</div>
+      <div class="results-meta">${meta.engagement||'Internal Audit'} · ${meta.period||''} · Prepared by ${meta.auditor||'N/A'} · ${now}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-word" onclick="exportWord()">📄 Export Word</button>
+      <button class="btn btn-outline" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div>
+  <div class="summary-grid">
+    <div class="sc sc-pass"><div class="sv">${counts.pass}</div><div class="sl">Pass</div></div>
+    <div class="sc sc-exc"><div class="sv">${counts.exc}</div><div class="sl">Exception</div></div>
+    <div class="sc sc-part"><div class="sv">${counts.part}</div><div class="sl">Partially tested</div></div>
+    <div class="sc sc-un"><div class="sv">${counts.un}</div><div class="sl">Unable to test</div></div>
+    <div class="sc"><div class="sv" style="font-size:20px">${results.length}</div><div class="sl">Total controls</div></div>
+  </div>`;
+
+  results.forEach(r=>{
+    const hasExc=(r.testResult||'').trim()==='Exception';
+    html+=`
+    <div class="rc" id="rc-${r.controlId||'x'}">
+      <div class="rc-head ${hc(r.testResult)}">
+        <div>
+          <div class="rc-id">${r.controlId||'—'} &nbsp;<span style="font-size:12px;font-weight:400;color:var(--gray4)">${r.riskName||''}</span></div>
+          <div class="rc-proc">${[r.businessUnit,r.department,r.process].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${r.overallRiskRating?`<span style="font-size:11px;font-weight:700;color:${rc(r.overallRiskRating)}">${r.overallRiskRating} risk</span>`:''}
+          ${badge(r.testResult)}
+        </div>
+      </div>
+      <div class="rc-body">
+        <div class="rc-grid">
+          <div class="rc-section">
+            <h4>Control details</h4>
+            ${r.riskCategory?`<div class="rrow"><div class="rlbl">Risk category</div><div class="rval">${r.riskCategory}</div></div>`:''}
+            ${r.riskDescription?`<div class="rrow"><div class="rlbl">Risk description</div><div class="rval">${r.riskDescription}</div></div>`:''}
+            ${r.controlDescription?`<div class="rrow"><div class="rlbl">Control description</div><div class="rval">${r.controlDescription}</div></div>`:''}
+            ${r.controlFrequency?`<div class="rrow"><div class="rlbl">Frequency</div><div class="rval">${r.controlFrequency}</div></div>`:''}
+            ${r.riskOwner?`<div class="rrow"><div class="rlbl">Risk owner</div><div class="rval">${r.riskOwner}</div></div>`:''}
+          </div>
+          <div class="rc-section">
+            <h4>Testing details</h4>
+            ${r.testingProcedure?`<div class="rrow"><div class="rlbl">Testing procedure</div><div class="rval">${r.testingProcedure}</div></div>`:''}
+            ${r.population?`<div class="rrow"><div class="rlbl">Population</div><div class="rval">${r.population}</div></div>`:''}
+            ${r.sampleSelected?`<div class="rrow"><div class="rlbl">Sample selected</div><div class="rval">${r.sampleSelected}</div></div>`:''}
+            ${r.evidenceReviewed?`<div class="rrow"><div class="rlbl">Evidence reviewed</div><div class="rval">${r.evidenceReviewed}</div></div>`:''}
+          </div>
+        </div>
+        <div class="rc-full">
+          <div class="rc-grid">
+            <div class="rc-section"><h4>Testing performed</h4><div class="rval">${r.testingPerformed||'—'}</div></div>
+            <div class="rc-section">
+              <h4>Conclusion</h4><div class="rval">${r.conclusion||'—'}</div>
+              ${fv(r.priorYearObservations)?`<div style="margin-top:8px"><div class="rlbl">Prior-year observation</div><div class="rval" style="font-style:italic">${r.priorYearObservations}</div></div>`:''}
+            </div>
+          </div>
+        </div>
+        ${hasExc?`<div class="alert ae">⚠ <div><strong>Exception:</strong> ${r.exceptionsIdentified}</div></div>`:''}
+        ${fv(r.additionalInfoRequired)?`<div class="alert aw">ℹ <div><strong>Additional information required:</strong> ${r.additionalInfoRequired}</div></div>`:''}
+        ${fv(r.assumptions)?`<div class="alert ai">~ <div><strong>Assumptions:</strong> ${r.assumptions}</div></div>`:''}
+        <div class="rev-note">🛡 <div><strong>Human review required</strong> — ${meta.reviewer||'A qualified reviewer'} must review and approve this conclusion before it is treated as a final audit result.</div></div>
+      </div>
+    </div>`;
+  });
+
+  area.innerHTML=html;
+  window._lastResults=results;
+  window._lastMeta=meta;
+}
+
+// ── WORD EXPORT ──
+async function exportWord(){
+  const results=window._lastResults;
+  const meta=window._lastMeta;
+  if(!results||!results.length){ alert('No results to export.'); return; }
+
+  const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,BorderStyle,HeadingLevel,AlignmentType,ShadingType,PageBreak} = docx;
+
+  const now=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+
+  function p(text, opts={}){ return new Paragraph({ children:[new TextRun({text:String(text||''),font:'Calibri',...opts})], ...opts }); }
+  function h1(text){ return new Paragraph({ text:String(text), heading:HeadingLevel.HEADING_1, spacing:{before:320,after:160} }); }
+  function h2(text){ return new Paragraph({ text:String(text), heading:HeadingLevel.HEADING_2, spacing:{before:240,after:120} }); }
+
+  function labelVal(label, value){
+    return new Paragraph({ spacing:{before:60,after:60}, children:[
+      new TextRun({text:label+': ', bold:true, font:'Calibri', size:20}),
+      new TextRun({text:String(value||'—'), font:'Calibri', size:20})
+    ]});
+  }
+
+  function resultColor(r){
+    if(r==='Pass') return'1a7a4a';
+    if(r==='Exception') return'c0392b';
+    if(r&&r.includes('Partially')) return'b7791f';
+    return'8892a4';
+  }
+
+  const children=[];
+
+  // Cover
+  children.push(new Paragraph({spacing:{before:480,after:120},alignment:AlignmentType.CENTER,children:[new TextRun({text:'AUDIT WORKING PAPER',bold:true,size:32,font:'Calibri',color:'0a1628'})]}));
+  children.push(new Paragraph({spacing:{before:0,after:80},alignment:AlignmentType.CENTER,children:[new TextRun({text:'Controls Testing Results',size:26,font:'Calibri',color:'c9a84c'})]}));
+  children.push(new Paragraph({spacing:{before:160,after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:meta.client||'Client',bold:true,size:24,font:'Calibri'})]}));
+  children.push(new Paragraph({spacing:{before:0,after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:meta.engagement||'Internal Audit',size:22,font:'Calibri',color:'8892a4'})]}));
+  children.push(new Paragraph({spacing:{before:0,after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:meta.period||'',size:20,font:'Calibri',color:'8892a4'})]}));
+  children.push(new Paragraph({spacing:{before:240,after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:`Prepared by: ${meta.auditor||'N/A'}  ·  Reviewed by: ${meta.reviewer||'N/A'}  ·  ${now}`,size:18,font:'Calibri',color:'8892a4'})]}));
+  children.push(new Paragraph({children:[new PageBreak()]}));
+
+  // Summary
+  children.push(h1('Executive Summary'));
+  const counts={pass:0,exc:0,part:0,un:0};
+  results.forEach(r=>{ const t=(r.testResult||'').trim(); if(t==='Pass') counts.pass++; else if(t==='Exception') counts.exc++; else if(t.includes('Partially')) counts.part++; else counts.un++; });
+  children.push(labelVal('Total controls tested', results.length));
+  children.push(labelVal('Pass', counts.pass));
+  children.push(labelVal('Exception', counts.exc));
+  children.push(labelVal('Partially tested', counts.part));
+  children.push(labelVal('Unable to test', counts.un));
+  children.push(new Paragraph({children:[new PageBreak()]}));
+
+  // Each control
+  results.forEach((r,i)=>{
+    children.push(h1(`${r.controlId||'Control '+(i+1)} — ${r.testResult||''}`));
+    if(r.riskName) children.push(new Paragraph({spacing:{before:0,after:120},children:[new TextRun({text:r.riskName,size:22,font:'Calibri',color:'4a5568',italics:true})]}));
+
+    children.push(h2('Control details'));
+    [['Business unit',r.businessUnit],['Department',r.department],['Process',r.process],['Sub-process',r.subprocess],['Risk category',r.riskCategory],['Risk description',r.riskDescription],['Control description',r.controlDescription],['Control frequency',r.controlFrequency],['Risk owner',r.riskOwner]].forEach(([l,v])=>{ if(v) children.push(labelVal(l,v)); });
+
+    children.push(h2('Testing details'));
+    [['Testing procedure',r.testingProcedure],['Population',r.population],['Sample selected',r.sampleSelected],['Evidence reviewed',r.evidenceReviewed],['Testing performed',r.testingPerformed]].forEach(([l,v])=>{ if(v) children.push(labelVal(l,v)); });
+
+    children.push(h2('Results'));
+    children.push(new Paragraph({spacing:{before:80,after:80},children:[new TextRun({text:'Test result: ',bold:true,font:'Calibri',size:20}),new TextRun({text:r.testResult||'—',bold:true,font:'Calibri',size:20,color:resultColor(r.testResult)})]}));
+    if(r.overallRiskRating) children.push(labelVal('Risk rating',r.overallRiskRating));
+    if(r.conclusion) children.push(labelVal('Conclusion',r.conclusion));
+    if(r.exceptionsIdentified && (r.testResult||'').trim()==='Exception') children.push(new Paragraph({spacing:{before:80,after:80},children:[new TextRun({text:'Exception: ',bold:true,font:'Calibri',size:20,color:'c0392b'}),new TextRun({text:r.exceptionsIdentified,font:'Calibri',size:20,color:'c0392b'})]}));
+    if(fv(r.additionalInfoRequired)) children.push(labelVal('Additional information required',r.additionalInfoRequired));
+    if(fv(r.assumptions)) children.push(labelVal('Assumptions',r.assumptions));
+    if(fv(r.priorYearObservations)) children.push(labelVal('Prior-year observations',r.priorYearObservations));
+
+    children.push(new Paragraph({spacing:{before:120,after:40},children:[new TextRun({text:'⚠ Human review required — A qualified reviewer must approve this conclusion before it is treated as a final audit result.',italics:true,font:'Calibri',size:18,color:'8892a4'})]}));
+    if(i<results.length-1) children.push(new Paragraph({children:[new PageBreak()]}));
+  });
+
+  const doc=new Document({sections:[{properties:{},children}]});
+  const blob=await Packer.toBlob(doc);
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`${(meta.client||'Audit').replace(/\s+/g,'-')}-Controls-Testing-${now.replace(/\s+/g,'-')}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── INIT ──
+(function init(){
+  renderClientNav();
+  // Auto-open first client or prompt
+  if(clients.length){ switchClient(clients[0].id); }
+})();
+</script>
+</body>
+</html>
